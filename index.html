@@ -112,7 +112,7 @@ td:first-child{color:#9bb096}tr:nth-child(even) td{background:#ffffff05}
 .ic small{font-size:10px;overflow-wrap:anywhere;word-break:break-word}
 }
 @media(max-width:700px){.fw.on{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}.fw .tt{grid-column:1}.fw .tabs{flex-direction:row;border-right:0;border-bottom:1px solid var(--line)}.fw .tabs button{border-bottom:2px solid transparent;border-left:0}.fw .tabs button.a{border-bottom-color:var(--acc)}}
-@media(min-width:901px){#desk{display:block;position:fixed;inset:0 0 42px 0;height:auto;padding:0}.ic.abs{position:absolute}}
+@media(min-width:901px){#desk{display:block;position:fixed;inset:0 0 42px 0;height:auto;padding:0;overflow:auto}.ic.abs{position:absolute;width:108px;overflow:hidden}.ic.abs small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}}
 .win .tt{cursor:move;touch-action:none;user-select:none}
 code{background:#ffffff0f;padding:0 4px;color:var(--acc)}
 #tout{flex:1;overflow:auto;padding:10px 14px;white-space:pre-wrap;font-size:13px;color:#b8ffb0;background:#050805;min-height:0}#tin{display:flex;gap:8px;padding:8px 14px;border-top:1px solid var(--line);background:#050805;color:#7cff8a;font-size:13px}#ti{flex:1;background:none;border:0;outline:0;color:#e6ffe0;font:inherit}.tw{color:var(--red)}.ty{color:var(--acc)}#term.on{display:flex;flex-direction:column}
@@ -418,8 +418,28 @@ return f.open?S(o,fd):S(g,fd+'<rect x="18" y="24" width="12" height="9" rx="1.5"
 function wdg(){const n=MAILS.filter(m=>m.u).length;const b=document.getElementById('bm');if(b){b.textContent=n;b.style.display=n?'':'none'}
 $('wdg').innerHTML='<b>SC-07 · СТАТУС</b><br>'+PH().n+'<br>'+W().s+'<br><span style="color:#7cff8a">● канал стабилен</span><br>Непрочитанных писем: '+n+'<br><span style="color:var(--red)">Тревог в журнале: '+LOG.length+'</span>';$('wxb').textContent=W().s}
 
-function layoutDesk(){const d=$('desk'),W=d.clientWidth,H=d.clientHeight,cw=108,ch=118,cols=Math.floor(W/cw),rows=Math.floor(H/ch);
- d.querySelectorAll('.ic.abs').forEach(i=>{if(innerWidth<=900){i.style.left=i.style.top='';return}let c=i._p[0],r=i._p[1];c=c<0?cols+c:c;r=r<0?rows+r:r;i.style.left=(10+c*cw+6)+'px';i.style.top=(8+r*ch)+'px'})}
+function layoutDesk(){const d=$('desk');const icons=[...d.querySelectorAll('.ic.abs')];
+ if(innerWidth<=900){icons.forEach(i=>{i.style.left=i.style.top=''});d.style.minHeight='';return}
+ const cw=118,ch=136,padX=14,padY=10,W=d.clientWidth,H=d.clientHeight;
+ const cols=Math.max(1,Math.floor((Math.max(W,cw)-padX)/cw));
+ let rows=Math.max(1,Math.floor(Math.max(H,ch)/ch));
+ const wdg=$('wdg'),wr=wdg?wdg.getBoundingClientRect():null;
+ const hideW=innerWidth<=800||!wr||wr.width<20||getComputedStyle(wdg).display==='none';
+ const hitW=(c,r)=>{if(hideW)return false;const x=padX+c*cw,y=padY+r*ch,iw=108,ih=124;const ix=Math.min(x+iw,wr.right)-Math.max(x,wr.left),iy=Math.min(y+ih,wr.bottom)-Math.max(y,wr.top);return ix>4&&iy>4};
+ const items=icons.map((el,ord)=>{const p=el._p||[0,0];return {el,ord,c:p[0]<0?cols+p[0]:p[0],r:p[1]<0?rows+p[1]:p[1]}});
+ const used=new Set(),k=(c,r)=>c+','+r,inside=(c,r)=>c>=0&&c<cols&&r>=0&&r<rows&&!hitW(c,r),groups=new Map();
+ for(const it of items){const key=k(it.c,it.r);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(it)}
+ const pending=[];
+ for(const group of groups.values()){group.sort((a,b)=>a.ord-b.ord);const head=group[0];
+  if(inside(head.c,head.r)&&!used.has(k(head.c,head.r))){used.add(k(head.c,head.r));head.cc=head.c;head.rr=head.r;for(const rest of group.slice(1))pending.push(rest)}
+  else for(const it of group)pending.push(it)}
+ pending.sort((a,b)=>a.ord-b.ord);let maxR=rows-1;
+ for(const it of pending){let best=null,bestD=1e9;const limit=Math.max(rows+4,(it.r||0)+3);
+  for(let r=0;r<=limit;r++)for(let c=0;c<cols;c++){if(used.has(k(c,r))||hitW(c,r))continue;const dist=Math.abs(c-it.c)+Math.abs(r-it.r)*8;if(dist<bestD){bestD=dist;best=[c,r]}}
+  if(!best){let r=maxR+1;while(hitW(0,r))r++;best=[0,r]}
+  used.add(k(best[0],best[1]));it.cc=best[0];it.rr=best[1];if(it.rr>maxR)maxR=it.rr}
+ const need=padY+(maxR+1)*ch+8;d.style.minHeight=need>H?need+'px':'';
+ for(const it of items){it.el.style.left=(padX+it.cc*cw)+'px';it.el.style.top=(padY+it.rr*ch)+'px'}}
 layoutDesk();addEventListener('resize',layoutDesk);
 let WN=0,ZO=[],TBS='';
 function mkWin(k,title,short,inner){const w=document.createElement('div');w.className='win';w.dataset.k=k;w.dataset.dyn=1;w.dataset.t=short;w.innerHTML='<div class="tt"><span>'+title+'</span><span class="wc"><button class="mn">_</button><button class="cl">✕</button></span></div>'+inner;document.body.appendChild(w);return w}
@@ -521,12 +541,12 @@ function stNext(){if(!window.RA.on||!window.RA.ctx)return;const x=window.RA.ctx,
  window.RA.stt=setTimeout(stNext,(real-xf-.25)*1000)}
 function radioTx(){const x=window.RA.ctx;if(!x||!window.RA.buf)return;const available=window.RA.buf.slice(1).filter(Boolean);if(!available.length)return;const b=available[Math.floor(Math.random()*available.length)],s=x.createBufferSource(),g=x.createGain(),t=x.currentTime,d=b.duration,fi=Math.min(2.5,d*.4),fo=Math.min(1.6,d*.35);
  s.buffer=b;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(1,t+fi);g.gain.setValueAtTime(1,t+d-fo);g.gain.linearRampToValueAtTime(0,t+d);s.connect(g);g.connect(window.RA.master);window.RA.cur=s;
- window.RA.sg.gain.cancelScheduledValues(t);window.RA.sg.gain.setValueAtTime(1,t);window.RA.sg.gain.linearRampToValueAtTime(.72,t+2);window.RA.sg.gain.setValueAtTime(.72,t+d-fo);window.RA.sg.gain.linearRampToValueAtTime(1,t+d+1);
+ const duck=.08,hold=Math.max(t+.45,t+d-fo);window.RA.sg.gain.cancelScheduledValues(t);window.RA.sg.gain.setValueAtTime(window.RA.sg.gain.value,t);window.RA.sg.gain.linearRampToValueAtTime(duck,t+.22);window.RA.sg.gain.setValueAtTime(duck,hold);window.RA.sg.gain.linearRampToValueAtTime(1,hold+1.35);
  s.onended=()=>{if(window.RA.cur===s)window.RA.cur=null};s.start(t)}
 function radioOff(){window.RA.t.forEach(clearInterval);window.RA.t=[];clearTimeout(window.RA.stt);const x=window.RA.ctx,m=window.RA.master;
  if(x&&m){m.gain.cancelScheduledValues(x.currentTime);m.gain.setValueAtTime(m.gain.value,x.currentTime);m.gain.linearRampToValueAtTime(0,x.currentTime+.8);setTimeout(()=>{try{x.close()}catch(e){}},900)}
  window.RA.ctx=null;window.RA.master=null;window.RA.on=0;window.RA.cur=null;$('rp').textContent='▶ ВКЛЮЧИТЬ';if($('brad'))$('brad').style.display='none';document.querySelectorAll('#rb i').forEach(i=>i.style.height='4px')}
 function radioBars(){const bs=document.querySelectorAll('#rb i'),tx=!!window.RA.cur,t=Date.now()/180;bs.forEach((b,i)=>{const h=tx?25+55*Math.abs(Math.sin(t+i*.55))*(.5+Math.random()*.5):6+Math.random()*34;b.style.height=h+'%'});$('rled').style.opacity=tx?1:(Math.random()<.5?.9:.3)}
-wdg();setInterval(wdg,60000);
+wdg();layoutDesk();setInterval(()=>{wdg();layoutDesk()},60000);
 setInterval(()=>{$('clk').textContent=ts()},1000);
 </script></body></html>
